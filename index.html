@@ -1,0 +1,260 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>CNC Builder AI</title>
+<style>
+:root{--bg:#f4f6f8;--cd:#fff;--tx:#17202b;--mu:#667085;--ac:#0b6e6e;--bd:#dde2e8;--wn:#b54708;--ok:#067647;--bad:#b42318;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11161b;--cd:#1a2027;--tx:#e8ecf1;--mu:#98a2b3;--ac:#3fc1b8;--bd:#2c353f;--wn:#f79009;--ok:#32d583;--bad:#f97066}}
+:root[data-theme="dark"]{--bg:#11161b;--cd:#1a2027;--tx:#e8ecf1;--mu:#98a2b3;--ac:#3fc1b8;--bd:#2c353f;--wn:#f79009;--ok:#32d583;--bad:#f97066}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.6 "Segoe UI",Tahoma,Arial,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:var(--cd);border-bottom:1px solid var(--bd)}
+h1{font-size:18px;margin:0}h2{font-size:16px;margin:0 0 8px}small,.mu{color:var(--mu)}
+main{display:grid;grid-template-columns:300px 1fr;gap:14px;padding:14px;max-width:1300px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+.cd{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:14px;min-width:0}
+label{display:block;margin:8px 0 2px;font-size:13px;color:var(--mu)}
+input,select,button{width:100%;padding:8px;border:1px solid var(--bd);border-radius:7px;background:var(--bg);color:var(--tx);font:inherit}
+button{cursor:pointer;background:var(--ac);color:#fff;border:0;margin-top:8px}button.g{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}
+.r2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.tabs button{width:auto;margin:0;padding:6px 12px;background:var(--cd);color:var(--tx);border:1px solid var(--bd)}.tabs button.on{background:var(--ac);color:#fff}
+.ov{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:start;vertical-align:top}th{color:var(--mu);font-weight:600}
+.k{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;border:1px solid var(--bd)}.ok{color:var(--ok)}.warn{color:var(--wn)}.bad{color:var(--bad)}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.st{padding:10px;border:1px solid var(--bd);border-radius:8px}.st b{display:block;font-size:19px}
+canvas{width:100%;height:380px;display:block;border-radius:8px;background:var(--bg);touch-action:none;cursor:grab}
+a{color:var(--ac)}
+</style></head><body>
+<header><h1 id="ttl">CNC Builder AI</h1><div style="width:200px"><button class="g" id="lb" style="margin:0">English</button></div></header>
+<main>
+<section class="cd"><h2 id="h_in"></h2>
+<label id="l_ty"></label><select id="ty"></select>
+<div class="r2"><div><label id="l_x"></label><input id="x" type="number" value="40" min="10" max="200"></div><div><label id="l_y"></label><input id="y" type="number" value="40" min="10" max="200"></div><div><label id="l_z"></label><input id="z" type="number" value="10" min="2" max="40"></div></div>
+<label id="l_mt"></label><select id="mt"></select>
+<label id="l_bd"></label><input id="bd" type="number" value="2500" min="0">
+<label id="l_ti"></label><select id="ti"></select>
+<button id="sv"></button><label id="l_ld"></label><select id="ld"></select><button class="g" id="lo"></button>
+<p class="mu" id="nt" style="font-size:12px"></p></section>
+<section><div class="tabs" id="tabs"></div><div class="cd" id="out"></div></section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+"use strict";
+const $=i=>document.getElementById(i);let lang='ar',tab='sum',RES=null,paper='A3';
+const D={ar:{ttl:'CNC Builder AI — منصة تصميم مكائن CNC',h_in:'مواصفات الماكينة',l_ty:'نوع الماكينة',l_x:'عرض X (سم)',l_y:'عمق Y (سم)',l_z:'مشوار Z (سم)',l_mt:'المادة',l_bd:'الميزانية (ريال)',l_ti:'الفئة',sv:'حفظ المشروع',l_ld:'مشاريع محفوظة',lo:'فتح المشروع',
+nt:'الأسعار المعروضة تقديرية من جدول داخلي وليست أسعار AliExpress الحية. روابط الشراء هي روابط بحث فقط، والسعر والتوفر غير متحققين.',
+sum:'الملخص',v3:'3D',bom:'قائمة القطع',cmp:'المقارنة',chk:'الفحوصات',exp:'التصدير',lib:'المراجع',
+types:{router:'CNC Router خشب/أكريليك',mill:'CNC Milling ألمنيوم',engrave:'CNC نقش',pcb:'PCB Milling',plotter:'CNC Plotter',laser:'CNC Laser'},
+mats:{wood:'خشب',acrylic:'أكريليك',alu:'ألمنيوم',pcb:'PCB'},tiers:{eco:'اقتصادي',bal:'متوازن',pro:'احترافي'}},
+en:{ttl:'CNC Builder AI — CNC Machine Design Platform',h_in:'Machine specs',l_ty:'Machine type',l_x:'X width (cm)',l_y:'Y depth (cm)',l_z:'Z travel (cm)',l_mt:'Material',l_bd:'Budget (SAR)',l_ti:'Build tier',sv:'Save project',l_ld:'Saved projects',lo:'Open project',
+nt:'Prices are estimates from an internal table, not live AliExpress prices. Purchase links are search links only; price and stock are unverified.',
+sum:'Summary',v3:'3D',bom:'BOM',cmp:'Compare',chk:'Checks',exp:'Export',lib:'References',
+types:{router:'CNC Router (wood/acrylic)',mill:'CNC Milling (aluminum)',engrave:'CNC Engraving',pcb:'PCB Milling',plotter:'CNC Plotter',laser:'CNC Laser'},mats:{wood:'Wood',acrylic:'Acrylic',alu:'Aluminum',pcb:'PCB'},tiers:{eco:'Economic',bal:'Balanced',pro:'Professional'}}};
+const T=k=>D[lang][k]||k,P=(a)=>lang=='ar'?a[0]:a[1],c10=v=>Math.ceil(v/10)*10,rd=(v,n=1)=>Math.round(v*10**n)/10**n;
+const PROF=[{n:'2020',w:20,kg:.5,I:5e3,p:9},{n:'2040',w:20,kg:.8,I:2e4,p:15},{n:'4040',w:40,kg:1.5,I:9e4,p:28},{n:'4080',w:40,kg:2.7,I:3e5,p:50},{n:'6060',w:60,kg:3.5,I:4.5e5,p:70},{n:'8080',w:80,kg:6,I:1.5e6,p:110}];
+const RAIL={SBR16:{bl:45,w:50,pm:35,pb:25},MGN9:{bl:30,w:20,pm:45,pb:30},MGN12:{bl:45,w:27,pm:60,pb:40},MGN15:{bl:61,w:34,pm:90,pb:55},HGR15:{bl:61,w:34,pm:95,pb:60},HGR20:{bl:77,w:44,pm:130,pb:85},HGR25:{bl:84,w:48,pm:180,pb:120}};
+const SCR={T8:{lead:8,r:6.2,eff:.4,a:12,b:.3,sup:'KP08 + KFL08',sp:35},SFU1204:{lead:4,r:9.9,eff:.9,a:90,b:.6,sup:'BK10 + BF10',sp:45},SFU1605:{lead:5,r:13.2,eff:.9,a:150,b:.9,sup:'BK12 + BF12',sp:55},GT2:{lead:40,r:0,eff:.9,a:0,b:0,sup:'',sp:0}};
+const MOT=[{n:'NEMA 17 (1.7A, 0.45 N·m)',h:.45,I:1.7,V:24,p:55,dr:['TB6600 4A',55]},{n:'NEMA 23 (3A, 1.9 N·m)',h:1.9,I:3,V:24,p:130,dr:['DM542 4.2A',110]},{n:'NEMA 24 (4.2A, 3.1 N·m)',h:3.1,I:4.2,V:36,p:190,dr:['DM556 5.6A',130]},{n:'NEMA 34 (6A, 8.5 N·m)',h:8.5,I:6,V:48,p:330,dr:['DM860T 7.2A',190]}];
+const SPN={router:[['300W DC spindle ER11',300,1.3,150,0],['800W water-cooled spindle ER11',800,2.3,330,1],['1.5kW water-cooled spindle ER16',1500,4.5,750,1]],mill:[['800W water-cooled spindle ER11',800,2.3,330,1],['1.5kW water-cooled spindle ER16',1500,4.5,750,1],['2.2kW water-cooled spindle ER20',2200,6,1100,1]],engrave:[['100W DC spindle ER11',100,.8,90,0],['300W DC spindle ER11',300,1.3,150,0],['300W DC spindle ER11',300,1.3,150,0]],pcb:[['100W DC spindle ER11',100,.8,90,0],['300W DC spindle ER11',300,1.3,150,0],['300W DC spindle ER11',300,1.3,150,0]],plotter:[['Servo pen lifter + holder',0,.2,25,0],['Servo pen lifter + holder',0,.2,25,0],['Servo pen lifter + holder',0,.2,25,0]],laser:[['5W laser module + air assist',0,.6,350,0],['10W laser module + air assist',0,.8,700,0],['20W laser module + air assist',0,1.2,1400,0]]};
+
+function calc(p,tier){
+const X=p.x*10,Y=p.y*10,Z=p.z*10,ty=p.type,mx=Math.max(X,Y),ti=['eco','bal','pro'].indexOf(tier),light=['plotter','laser','pcb'].includes(ty);
+const Fc=ty=='plotter'?3:ty=='laser'?0:({wood:60,acrylic:50,alu:150,pcb:15}[p.mat]||60);
+const S=SPN[ty][ti],sp={n:S[0],W:S[1],kg:S[2],p:S[3],cool:S[4]};
+const rail=light?['MGN9','MGN12','MGN15'][ti]:ty=='mill'?['HGR15','HGR20','HGR25'][ti]:['SBR16',mx<=500?'MGN15':'HGR15',mx>800?'HGR25':'HGR20'][ti];
+const scn=light?'GT2':ty=='mill'?['SFU1204','SFU1605','SFU1605'][ti]:['T8','SFU1204','SFU1605'][ti],zs=light?'T8':scn;
+const R=RAIL[rail],bl=R.bl;
+let pi=mx<=250?0:mx<=450?1:mx<=650?2:mx<=900?3:5;if(ty=='mill')pi=Math.max(pi,2);pi=Math.min(5,pi+(ti==2?1:0));if(pi==4)pi=5;
+const PF=PROF[pi],pw=PF.w;
+const gd=Math.max(120,2*bl+40),yr=c10(Y+gd+30),zw=bl+70,xr=c10(X+zw+30),zr=c10(Z+bl+60);
+const outX=c10(xr+2*(12+R.w+pw)),outY=yr+40,gH=Z+220,H=pw+gH,beamL=xr+60;
+const feedT=[1500,3000,5000][ti],dual=X>=600;
+const ax=[{k:'X',tr:X,m:1.5+sp.kg+X/400,gr:0,n:1,sc:scn},{k:'Y',tr:Y,m:3+X/150+sp.kg,gr:0,n:dual?2:1,sc:scn},{k:'Z',tr:Z,m:.5+sp.kg,gr:1,n:1,sc:zs}];
+const parts=[],checks=[],add=(g,n,spec,q,u,why,s)=>parts.push({g,n,spec,q,u,why,s:s||n});
+let motors=0,maxV=24,sumI=0;
+ax.forEach(a=>{const sc=SCR[a.sc],F=(Fc+a.m*(a.gr?10.8:1.2))/a.n,Tr=F*sc.lead/1000/(2*Math.PI*sc.eff),need=3*Tr;
+ let m=MOT.find(o=>o.h>=need),okm=!!m;if(!m)m=MOT[3];a.mot=m;a.F=F;a.T=Tr;a.need=need;a.okm=okm;a.L=a.tr+120;
+ if(sc.r){const nc=18.7*sc.r*1e7/(a.L*a.L);a.nc=nc;a.maxF=.8*nc*sc.lead;a.okc=a.maxF>=feedT}else{a.maxF=1e9;a.okc=true}
+ motors+=a.n;maxV=Math.max(maxV,m.V);sumI+=m.I*a.n;
+ checks.push({s:okm?'ok':'bad',t:[`محور ${a.k}: عزم لازم ≈ ${rd(need,2)} N·m (مع معامل أمان 1.5 وخصم 50% عند السرعة) — المحرك ${m.n.split(' (')[0]} ${okm?'كافٍ':'غير كافٍ، يلزم Servo/محرك أكبر'}`,`${a.k} axis: required holding torque ≈ ${rd(need,2)} N·m (SF 1.5, 50% speed derate) — ${m.n.split(' (')[0]} ${okm?'sufficient':'insufficient, needs servo/larger motor'}`]});
+ if(sc.r)checks.push({s:a.okc?'ok':'warn',t:[`محور ${a.k}: السرعة الحرجة للبرغي ≈ ${Math.round(a.maxF)} مم/د (الهدف ${feedT})${a.okc?'':' — قلّل السرعة السريعة'}`,`${a.k} axis: screw critical-speed feed limit ≈ ${Math.round(a.maxF)} mm/min (target ${feedT})${a.okc?'':' — lower rapid feed'}`]});});
+// frame
+const cuts=[['Base long (Y)',2,outY],['Base cross (X)',2,outX-2*pw],['Gantry uprights',2,gH],['Gantry beam',1,beamL]],profLen=cuts.reduce((s,c)=>s+c[1]*c[2],0),br=12;
+const dfl=Fc*Math.pow(xr,3)/(48*70000*PF.I),dl=[.08,.05,.03][ti];
+checks.push({s:dfl<=dl?'ok':'warn',t:[`انحراف الجسر (الشعاع فقط، تقدير تقريبي ±50%): ${rd(dfl,3)} مم مقابل حد ${dl} مم`,`Gantry beam deflection (beam only, rough ±50%): ${rd(dfl,3)} mm vs limit ${dl} mm`]});
+add('M',`Aluminum extrusion ${PF.n}`,`${rd(profLen/1000,2)} m total (cut list in Summary)`,Math.ceil(profLen/1000*10)/10,PF.p*1000/1000,['حجم القطاع مبني على أكبر بُعد وحمل الجسر','Section chosen from largest dimension and gantry load'],`aluminum profile ${PF.n} T-slot`);
+add('M',`Angle brackets + T-nuts (${PF.n})`,'M5/M6 sets',br,4,['وصلات الهيكل: 4 زوايا للقاعدة + 4 للأعمدة + 4 للجسر','Frame joints: 4 base, 4 uprights, 4 beam'],`corner bracket ${PF.n} t-nut`);
+const rl=[['X',xr],['Y',yr],['Z',zr]];rl.forEach(([k,l])=>add('M',`${rail} linear rail ${k} (×2)`,`${l} mm each + 2 blocks per rail`,2,rd(R.pm*l/1000+2*R.pb,0),['مسطرتان لكل محور لمنع الالتواء؛ الطول = المشوار + طول العربة + هامش','Two rails per axis for stiffness; length = travel + carriage + margin'],`${rail} linear guide ${l}mm with block`));
+ax.forEach(a=>{const sc=SCR[a.sc],nm=a.sc;
+ if(nm=='GT2'){add('M',`GT2 belt axis ${a.k}`,`${2*a.tr+300} mm, 20T pulleys + idlers`,1,40,['سير لخفة الحمل وسرعة أعلى','Belt for light load and speed'],'GT2 belt 6mm 20T pulley idler kit')}
+ else{add('M',`${nm} screw + nut axis ${a.k}`,`${a.L} mm`,a.n,rd(sc.a+sc.b*a.L/10,0),[`الخطوة ${sc.lead} مم/دورة، الطول = المشوار+120`,`Lead ${sc.lead} mm/rev, length = travel + 120`],`${nm} lead screw ${a.L}mm nut`);add('M',`Screw supports ${sc.sup}`,`axis ${a.k}`,a.n,sc.sp*2,['جهة ثابتة وجهة حرة','Fixed + floating end'],sc.sup+' screw support');add('M','Flexible coupling',`axis ${a.k}`,a.n,15,['يمتص عدم المحاذاة','Absorbs misalignment'],'flexible coupling shaft')}
+ add('E',a.mot.n,`axis ${a.k}`,a.n,a.mot.p,[`عزم محسوب ${rd(a.need,2)} N·m`,`Computed torque ${rd(a.need,2)} N·m`],a.mot.n.split(' (')[0]+' stepper motor');add('E',`Driver ${a.mot.dr[0]}`,`axis ${a.k}`,a.n,a.mot.dr[1],['يطابق تيار المحرك','Matches motor current'],a.mot.dr[0]+' stepper driver');});
+const zp=zw*zr,gp=gd*gH,pr=(ar,t)=>rd(ar*t*2.7e-6*35,0);
+add('M','Aluminum 6061 gantry side plates 12 mm',`${gd}×${gH} mm`,2,pr(gp,12),['اللوحان الجانبيان؛ السماكة غير محققة هندسيًا','Side plates; thickness not structurally verified'],'6061 aluminum plate 12mm CNC cut');
+add('M','Aluminum Z-carriage plate 10 mm',`${zw}×${zr} mm`,1,pr(zp,10),['حامل المغزل','Spindle carrier'],'6061 aluminum plate 10mm');
+add('M','Motor mount plates 8 mm',`${motors} pcs`,motors,25,['حوامل مخصصة للمحركات','Custom motor mounts'],'NEMA motor mount bracket');
+add('M','Spoilboard / bed (MDF 18 mm)',`${X}×${Y} mm`,1,45,['سطح التشغيل','Work bed'],'MDF board');
+add('M','Cable chain',`${Math.ceil((X+Y+Z)/1000*10)/10} m`,1,Math.round(22*(X+Y+Z)/1000+20),['حماية الكابلات','Cable protection'],'cable drag chain 15x30');
+add('M',`Spindle mount / ${sp.n.split(' ')[0]} clamp`,'',1,40,['تثبيت المغزل','Spindle clamp'],'spindle mount clamp');
+add('M',sp.n,`${sp.W} W`,1,sp.p,[ty=='mill'?'التفريز يحتاج صلابة أعلى؛ القدرة الأعلى ليست دائمًا أفضل':'القدرة حسب المادة وحجم الهيكل','Power matched to material and frame; more power is not always better'],sp.n);
+if(sp.cool)add('M','Water cooling kit','pump + tubing',1,70,['تبريد المغزل','Spindle cooling'],'spindle water cooling pump kit');
+if(sp.W>=1500)add('E','VFD '+(sp.W>=2200?'2.2kW':'1.5kW'),'220V',1,sp.W>=2200?500:400,['مشغّل للمغزل المتزامن','Spindle drive'],'VFD 1.5kw spindle');else if(sp.W>0)add('E','Spindle PSU + speed controller',`${sp.W} W`,1,90,['تغذية المغزل DC','DC spindle supply'],'DC spindle power supply speed controller');
+const ctl=['Arduino CNC shield (GRBL)','MKS DLC32 / ESP32 (FluidNC)','4-axis motion controller (grblHAL/Mach3)'][ti];
+add('E',ctl,'4-axis',1,[60,110,260][ti],['وحدة التحكم حسب الفئة','Controller by tier'],ctl);
+const Pw=sumI*maxV*.6*1.3,psuW=[150,240,350,480,600,800,1000].find(v=>v>=Pw)||1000;
+add('E',`PSU ${maxV}V ${psuW}W`,'DC',1,Math.round(psuW*.35+30),[`تقدير الحمل ≈ ${Math.round(Pw)}W مع هامش 30%`,`Load ≈ ${Math.round(Pw)} W with 30% margin`],`${maxV}V ${psuW}W switching power supply`);
+checks.push({s:'ok',t:[`مصدر الطاقة ${maxV}V / ${psuW}W مناسب لتقدير الحمل ${Math.round(Pw)}W`,`PSU ${maxV}V / ${psuW}W covers estimated ${Math.round(Pw)} W`]});
+add('E','Limit switches',`${dual?4:3} pcs`,dual?4:3,8,['حدود المحاور','Axis end-stops'],'limit switch CNC');
+add('E','Emergency stop + contactor','NC mushroom',1,45,['دائرة إيقاف طارئ','Emergency stop circuit'],'emergency stop button contactor');
+add('E','Fuse / breaker + grounding set','',1,40,['حماية وتأريض','Protection and grounding'],'din rail circuit breaker');
+add('E','Shielded cable + connectors',`${Math.ceil((X+Y+Z)/1000*2+8)} m`,1,70,['كابلات محركات ومفاتيح','Motor and switch cabling'],'shielded stepper motor cable 4 core');
+add('E','Electrical enclosure','',1,80,['صندوق للإلكترونيات','Electronics housing'],'electrical enclosure box');
+add('M','Fastener kit','M3–M8',1,60,['مسامير وصواميل','Screws and nuts'],'M5 M6 screw nut kit');
+add('S','GRBL / FluidNC / grblHAL','free',1,0,['برمجيات تحكم مفتوحة المصدر','Open-source firmware'],'');
+const sub=parts.reduce((s,p)=>s+p.q*p.u,0),ship=sub*.15,total=sub+ship;
+checks.push({s:total<=p.bd?'ok':'bad',t:[`التكلفة التقديرية ${Math.round(total)} ريال (شحن/رسوم 15% افتراضي غير محقق) مقابل ميزانية ${p.bd}`,`Estimated cost ${Math.round(total)} SAR (15% placeholder for shipping/duties, unverified) vs budget ${p.bd}`]});
+if(ty=='mill'&&ti==0)checks.push({s:'warn',t:['تفريز الألمنيوم بفئة اقتصادية: الصلابة محدودة، استخدم أعماق قطع صغيرة','Aluminum milling on economic tier: limited rigidity, use shallow cuts']});
+if(ty=='laser')checks.push({s:'warn',t:['الليزر يتطلب حاجزًا مغلقًا ونظارات وقفل أمان — غير مشمول في القائمة','Laser needs enclosure, goggles, interlock — not in BOM']});
+checks.push({s:'warn',t:['كشف التصادم والتحليل الإنشائي الكامل والتحقق الهندسي لم تُنفَّذ؛ يلزم مراجعة مهندس','Collision detection, full FEA and engineer review not performed']});
+const mass=profLen/1000*PF.kg+(2*gp*12+zp*10)*2.7e-6+motors*(1)+sp.kg+4;
+return{parts,checks,sub,ship,total,rail,scn,PF,sp,ax,cuts,profLen,outX,outY,H,xr,yr,zr,gd,gH,zw,beamL,pw,rw:R.w,dfl,mass,status:checks.some(c=>c.s=='bad')?'Validation Required':'Calculated',feedT,motors,X,Y,Z,tier}}
+
+function inp(){return{type:$('ty').value,x:+$('x').value||40,y:+$('y').value||40,z:+$('z').value||10,mat:$('mt').value,bd:+$('bd').value||0,tier:$('ti').value}}
+function run(){const p=inp();RES={p,all:{eco:calc(p,'eco'),bal:calc(p,'bal'),pro:calc(p,'pro')}};RES.r=RES.all[p.tier];show()}
+const f=n=>Math.round(n).toLocaleString('en-US');
+const xui=()=>`<div class="g3" style="margin-top:12px"><div><label>Paper</label><select id="pp">${['A4','A3','A2','A1'].map(k=>`<option>${k}</option>`).join('')}</select></div><div><button id="xp">Export Complete Manufacturing PDF</button></div><div><button id="xz" class="g">Project ZIP (PDF + DXF + CSV)</button></div></div><p id="xm" class="mu"></p>`;
+async function doExp(k){const m=$('xm');try{m.textContent='…';const r=RES.r,p=RES.p,B=buildAll(window.jspdf.jsPDF,r,p,paper),nm=`cnc_${p.type}_${r.X}x${r.Y}_${r.tier}`;
+if(k=='pdf')return await dl(nm+'.pdf',B.pdf,m);const z=new JSZip();z.file(nm+'.pdf',B.pdf);Object.entries(B.dx).forEach(([n,v])=>z.file('dxf/'+n,v));z.file('drilling_coordinates.csv',B.csv);z.file('bom.csv','\ufeff'+r.parts.map((q,i)=>[i+1,gk(q),q.n,q.spec,q.q,q.u].join(';')).join('\n'));z.file('README.txt','PRELIMINARY DRAWINGS - NOT APPROVED FOR MANUFACTURING\nDXF/CSV/PDF share one hole list. DXF match: '+(B.vr.dxf?'PASS':'FAIL')+'\nHole geometry issues: '+(B.vr.errs.join('; ')||'none')+'\nNot generated: STEP, STL, section/iso/exploded views.');
+await dl(nm+'.zip',await z.generateAsync({type:'blob'}),m)}catch(e){m.textContent='Export failed: '+(e&&e.message||e)}}
+function show(){const r=RES.r,p=RES.p;[...$('tabs').children].forEach(b=>b.className=b.dataset.t==tab?'on':'');
+$('v3box')||0;let h='';
+if(tab=='sum'){h=`<h2>${T('sum')}</h2><div class="g3"><div class="st"><small>Status</small><b>${r.status}</b></div><div class="st"><small>Outer X×Y×H (mm)</small><b>${r.outX}×${r.outY}×${r.H}</b></div><div class="st"><small>SAR (est.)</small><b>${f(r.total)}</b></div><div class="st"><small>Mass (est.) kg</small><b>${rd(r.mass,0)}</b></div></div>
+<p>${P([`مساحة العمل ${p.x*10}×${p.y*10} مم، مشوار Z ${p.z*10} مم — الأبعاد الخارجية أكبر لأن العربات والمساند وهوامش الأمان محسوبة.`,`Work area ${p.x*10}×${p.y*10} mm, Z ${p.z*10} mm — outer size is larger because carriages, supports and safety margins are added.`])}</p>
+<div class="ov"><table><tr><th>Frame cut list (${r.PF.n})</th><th>Qty</th><th>mm</th></tr>${r.cuts.map(c=>`<tr><td>${c[0]}</td><td>${c[1]}</td><td>${c[2]}</td></tr>`).join('')}</table></div>
+<p class="mu">Rails: ${r.rail} · Screws: ${r.scn} · Spindle: ${r.sp.n} · Motors: ${r.ax.map(a=>a.k+'='+a.mot.n.split(' (')[0]+(a.n>1?'×'+a.n:'')).join(', ')}</p>
+<p class="mu">${P(['الاعتماد للتصنيع يتطلب مراجعة مهندس؛ التطبيق لا يضع حالة "جاهز للتصنيع".','Manufacturing approval requires engineer review; the app never sets "Ready for Manufacturing".'])}</p>`}
+if(tab=='v3'){h=`<div class="g3" style="margin-bottom:8px"><select id="pv"><option value="all">Whole machine</option><option value="P-01">P-01 Motor plate</option><option value="P-02">P-02 Gantry plate</option><option value="P-03">P-03 Z plate</option></select><div><button id="png" style="margin:0">Save image (PNG)</button></div><div><input type="range" id="se" min="0" max="100" value="0" title="Explode"></div></div><canvas id="cv"></canvas><p id="pn" class="mu" style="min-height:22px">Click a part to see its name</p><div class="g3"><div><label>X</label><input type="range" id="sx" min="0" max="100" value="50"></div><div><label>Y</label><input type="range" id="sy" min="0" max="100" value="50"></div><div><label>Z</label><input type="range" id="sz" min="0" max="100" value="100"></div></div><p class="mu">${P(['اسحب للتدوير، العجلة للتكبير. النموذج مولَّد من الأبعاد المحسوبة (صناديق بارامترية للتصور، وليس ملف CAD).','Drag to rotate, wheel to zoom. Built from computed dimensions (parametric boxes for visualization, not CAD output).'])}</p>`}
+if(tab=='bom'){let n=0;h='<h2>BOM</h2>'+GROUPS.map(([k,nm])=>{const L=r.parts.filter(q=>gk(q)==k);if(!L.length)return'';const st=L.reduce((t,q)=>t+q.q*q.u,0);return `<h2 style="margin-top:14px">${P(nm)} <span class="k">${f(st)} SAR</span></h2><div class="ov"><table><tr><th>#</th><th>Part</th><th>Spec</th><th>Qty</th><th>SAR est.</th><th>${P(['السبب','Why'])}</th><th></th></tr>${L.map(q=>`<tr><td>${++n}</td><td>${q.n}</td><td>${q.spec}</td><td>${q.q}</td><td>${f(q.q*q.u)}</td><td>${P(q.why)}</td><td>${q.s?`<a target="_blank" rel="noopener" href="https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(q.s)}">search</a>`:''}</td></tr>`).join('')}</table></div>`}).join('')+`<p><b>${P(['المجموع','Subtotal'])} ${f(r.sub)} · ${P(['شحن/رسوم 15% (غير محقق)','shipping 15% (unverified)'])} ${f(r.ship)} · ${P(['الإجمالي','Total'])} ${f(r.total)} SAR</b></p>`}
+if(tab=='cmp'){const A=['eco','bal','pro'].map(k=>RES.all[k]);const row=(l,fn)=>`<tr><th>${l}</th>${A.map(a=>`<td>${fn(a)}</td>`).join('')}</tr>`;
+h=`<h2>${T('cmp')}</h2><div class="ov"><table><tr><th></th>${['eco','bal','pro'].map(k=>`<th>${D[lang].tiers[k]}</th>`).join('')}</tr>${row('SAR (est.)',a=>f(a.total))}${row('Frame',a=>a.PF.n)}${row('Rails',a=>a.rail)}${row('Screws',a=>a.scn)}${row('Spindle',a=>a.sp.n)}${row('Deflection mm',a=>rd(a.dfl,3))}${row('Rapid feed mm/min',a=>a.feedT)}${row('Mass kg',a=>rd(a.mass,0))}${row('Status',a=>a.status)}${row(P(['ضمن الميزانية','Within budget']),a=>a.total<=p.bd?'✓':'✗')}</table></div><p class="mu">${P(['الصلابة والدقة تقديرات تقريبية من حسابات مبسطة، وليست قياسات.','Rigidity and accuracy are rough estimates from simplified calculations, not measurements.'])}</p>`}
+if(tab=='chk'){h=`<h2>${T('chk')}</h2>${r.checks.map(c=>`<p class="${c.s}">${c.s=='ok'?'✓':c.s=='warn'?'!':'✗'} ${P(c.t)}</p>`).join('')}`}
+if(tab=='exp'){h=`<h2>${T('exp')}</h2><button id="e1">BOM CSV</button><button id="e2">Project JSON</button><button id="e3">Top-view SVG</button><p class="mu">${P(['غير متاح بعد: STEP / DXF / STL / PDF / DWG / ZIP — يتطلب خدمة CAD في الخلفية (CadQuery أو FreeCAD) ولا يمكن إنتاجه من صفحة متصفح.','Not yet available: STEP / DXF / STL / PDF / DWG / ZIP — needs a backend CAD service (CadQuery or FreeCAD).'])}</p><p id="em" class="mu"></p>`}
+if(tab=='lib'){const L=['VoronDesign/Voron-Cascade','MillenniumMachines/Milo-V2.0','Open-Lab-Starter-Kit/OLSK-Small-CNC','shapeoko/ShapeOko','eclsnowman/LienCNC-V2','Fabricatable-Machines/Humphrey2'];
+h=`<h2>${T('lib')}</h2><p class="mu">${P(['روابط من قائمتك، لم يتم التحقق من وجودها أو تراخيصها. الفهرسة والاستيراد الآلي تتطلب خدمة خلفية (GitHub API).','Links from your list; existence and licenses NOT verified. Automated indexing needs a backend (GitHub API).'])}</p><ul>${L.map(l=>`<li><a target="_blank" rel="noopener" href="https://github.com/${l}">${l}</a></li>`).join('')}</ul>`}
+if(tab=='sum'||tab=='v3')h+=xui();$('out').innerHTML=h;if($('xp')){$('pp').value=paper;$('pp').onchange=()=>paper=$('pp').value;$('xp').onclick=()=>doExp('pdf');$('xz').onclick=()=>doExp('zip')}if(tab=='v3')init3d();if(tab=='exp'){$('e1').onclick=()=>dl('bom.csv','\ufeff'+['#,Group,Part,Spec,Qty,Unit SAR est,Total SAR est,Search'].concat(r.parts.map((q,i)=>[i+1,gk(q),q.n,q.spec,q.q,q.u,rd(q.q*q.u,0),q.s].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','))).join('\n'));
+$('e2').onclick=()=>dl('cnc-project.json',JSON.stringify({params:p,status:r.status,dims:{outX:r.outX,outY:r.outY,H:r.H},parts:r.parts,checks:r.checks.map(c=>c.t[1]),note:'Estimated prices; not verified'},null,1));
+$('e3').onclick=()=>{const s=.5,W=r.outX*s+40,Hh=r.outY*s+40,rc=(x,y,w,h,c)=>`<rect x="${20+x*s}" y="${20+y*s}" width="${w*s}" height="${h*s}" fill="none" stroke="${c}"/>`;
+ dl('top-view.svg',`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${Hh}" viewBox="0 0 ${W} ${Hh}"><rect width="100%" height="100%" fill="#fff"/>${rc(0,0,r.outX,r.outY,'#444')}${rc((r.outX-r.X)/2,(r.outY-r.Y)/2,r.X,r.Y,'#0b6e6e')}<text x="22" y="14" font-size="11" font-family="Arial">Outer ${r.outX} x ${r.outY} mm | work ${r.X} x ${r.Y} mm | top view (not for manufacture)</text></svg>`)}}}
+async function dl(n,d,mm){
+ const m=mm||$('em');
+ try{
+  const blob=d instanceof Blob?d:new Blob([d],{type:n.endsWith('.pdf')?'application/pdf':n.endsWith('.zip')?'application/zip':n.endsWith('.png')?'image/png':n.endsWith('.json')?'application/json':'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=n;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  if(m)m.textContent='Download started: '+n;
+ }catch(e){if(m)m.textContent='Download failed: '+(e&&e.message||e)}
+}
+
+// 3D
+let ren,scn3,cam,G,gg,cg,sg,ang={a:.8,b:.5},dist=10,ctr=[0,0,0];
+function bx(par,w,h,d,x,y,z,c,n,mt){const m=new THREE.Mesh(new THREE.BoxGeometry(w*.01,h*.01,d*.01),new THREE.MeshStandardMaterial({color:c,roughness:mt?.35:.6,metalness:mt?.8:.25}));m.position.set(x*.01,y*.01,z*.01);m.castShadow=m.receiveShadow=true;m.userData.n=n||'';par.add(m);return m}
+function cy(par,r,len,x,y,z,c,ax,n,mt){const m=new THREE.Mesh(new THREE.CylinderGeometry(r*.01,r*.01,len*.01,28),new THREE.MeshStandardMaterial({color:c,roughness:.3,metalness:mt===0?.1:.85}));if(ax=='x')m.rotation.z=Math.PI/2;if(ax=='z')m.rotation.x=Math.PI/2;m.position.set(x*.01,y*.01,z*.01);m.castShadow=m.receiveShadow=true;m.userData.n=n||'';par.add(m);return m}
+function plate3d(q){const s=new THREE.Shape(),w=q.w,h=q.h,k=q.rr;s.moveTo(k,0);s.lineTo(w-k,0);s.quadraticCurveTo(w,0,w,k);s.lineTo(w,h-k);s.quadraticCurveTo(w,h,w-k,h);s.lineTo(k,h);s.quadraticCurveTo(0,h,0,h-k);s.lineTo(0,k);s.quadraticCurveTo(0,0,k,0);
+q.holes.forEach(o=>{const p=new THREE.Path();p.absarc(o.x,o.y,o.d/2,0,Math.PI*2,true);s.holes.push(p)});const m=new THREE.Mesh(new THREE.ExtrudeGeometry(s,{depth:q.t,bevelEnabled:false,curveSegments:40}),new THREE.MeshStandardMaterial({color:0xc4cad2,roughness:.35,metalness:.85}));m.scale.setScalar(.01);m.castShadow=m.receiveShadow=true;m.userData.n=q.no+' '+q.name+' ('+q.w+'x'+q.h+'x'+q.t+' mm, '+q.holes.length+' holes)';return m}
+let PG,FR,EXP=0;
+function init3d(){const cv=$('cv');try{ren=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true,preserveDrawingBuffer:true});ren.shadowMap.enabled=true;ren.outputEncoding=THREE.sRGBEncoding}catch(e){cv.outerHTML='<p class="bad">WebGL unavailable</p>';return}
+const r=RES.r,nk=r.ax[0].mot.n.split(' (')[0],NS=NEMA[nk].sq,R=RAIL[r.rail],bl=R.bl;scn3=new THREE.Scene();cam=new THREE.PerspectiveCamera(40,2,.1,300);
+scn3.add(new THREE.HemisphereLight(0xffffff,0x556070,.75));const dl=new THREE.DirectionalLight(0xffffff,.9);dl.position.set(6,12,8);dl.castShadow=true;dl.shadow.mapSize.set(2048,2048);Object.assign(dl.shadow.camera,{left:-12,right:12,top:12,bottom:-12,near:1,far:40});scn3.add(dl);
+const gr=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.ShadowMaterial({opacity:.25}));gr.rotation.x=-Math.PI/2;gr.receiveShadow=true;scn3.add(gr);
+G=new THREE.Group();scn3.add(G);FR=new THREE.Group();G.add(FR);const pw=r.pw,ox=r.outX,oy=r.outY,H=r.H,gx=r.xr/2+6+r.rw/2,C={pf:0x9aa5b1,pl:0xd0d5dc,st:0x2a313a,ac:0x0b8f8f,sp:0xd9822b,mo:0x1f2530};
+const rs=r.scn=='T8'?4:r.scn=='SFU1204'?6:8,gt=r.scn=='GT2',yc=pw+r.gH-r.PF.w/2,zc=pw+r.gH-r.PF.w-r.zr/2+30,hs=Math.max(100,r.sp.kg*50+40),sr=r.sp.W>=1500?40:r.sp.W>=800?32:26;
+bx(FR,pw,pw,oy,-(ox/2-pw/2),pw/2,0,C.pf,'Frame profile '+r.PF.n);bx(FR,pw,pw,oy,ox/2-pw/2,pw/2,0,C.pf,'Frame profile '+r.PF.n);bx(FR,ox-2*pw,pw,pw,0,pw/2,-(oy/2-pw/2),C.pf,'Frame cross '+r.PF.n);bx(FR,ox-2*pw,pw,pw,0,pw/2,oy/2-pw/2,C.pf,'Frame cross '+r.PF.n);
+bx(FR,r.X,18,r.Y,0,pw+9,0,0xb08a5a,'Spoilboard');
+[-1,1].forEach(s=>{bx(FR,r.rw,10,r.yr,s*gx,pw+5,0,C.st,'Y rail '+r.rail,1);if(gt)bx(FR,6,3,r.yr,s*(gx-r.rw/2-14),pw+22,0,C.st,'GT2 belt');else cy(FR,rs,r.yr,s*(gx-r.rw/2-14),pw+22,0,0xb9c0c8,'z','Y screw '+r.scn,1);bx(FR,NS,NS,50,s*(gx-r.rw/2-14),pw+22,-(r.yr/2+25),C.mo,'Y motor '+nk)});
+gg=new THREE.Group();G.add(gg);[-1,1].forEach(s=>{bx(gg,12,r.gH,r.gd,s*gx,pw+r.gH/2,0,C.pl,'P-02 Gantry side plate',1);[-1,1].forEach(j=>bx(gg,r.rw+8,14,bl,s*gx,pw+17,j*(bl/2+10),C.st,'Y block '+r.rail,1))});
+bx(gg,r.beamL,r.PF.w,r.PF.w,0,yc,0,C.ac,'Gantry beam '+r.PF.n);if(gt)bx(gg,r.beamL-40,3,6,0,yc,-(r.PF.w/2+16),C.st,'GT2 belt');else cy(gg,rs,r.beamL-30,0,yc,-(r.PF.w/2+16),0xb9c0c8,'x','X screw '+r.scn,1);bx(gg,50,NS,NS,r.beamL/2+25,yc,-(r.PF.w/2+16),C.mo,'X motor '+nk);
+cg=new THREE.Group();gg.add(cg);const pz=r.PF.w/2+8,sp=r.zw-R.w-20;bx(cg,r.zw,r.zr,10,0,zc,pz,C.pl,'P-03 Z carriage plate',1);[-1,1].forEach(s=>bx(cg,R.w/2,r.zr-30,8,s*sp/2,zc,pz+9,C.st,'Z rail '+r.rail,1));cy(cg,rs,r.zr+30,0,zc+10,pz+24,0xb9c0c8,'y','Z screw',1);bx(cg,NS,50,NS,0,zc+r.zr/2+30,pz+24,C.mo,'Z motor '+nk);
+sg=new THREE.Group();cg.add(sg);const sz=pz+16+sr;cy(sg,sr,hs,0,zc-20,sz,C.sp,'y','Spindle '+r.sp.n,1);bx(sg,sr*2+20,18,sr+14,0,zc,pz+16+(sr+14)/2,C.st,'Spindle clamp',1);cy(sg,11,28,0,zc-20-hs/2-14,sz,0x8d949c,'y','ER collet',1);cy(sg,3,30,0,zc-20-hs/2-42,sz,0xe8eaed,'y','End mill',1);
+PG=new THREE.Group();PG.visible=false;scn3.add(PG);parts2d(r).forEach(q=>{const m=plate3d(q);m.visible=false;m.name=q.no;PG.add(m)});
+const view=()=>{const v=$('pv').value;G.visible=v=='all';PG.visible=v!='all';PG.children.forEach(m=>m.visible=m.name==v);if(v=='all'){dist=Math.max(ox,oy)*.01*2;ctr=[0,H*.005,0]}else{const q=PG.children.find(m=>m.name==v),b=new THREE.Box3().setFromObject(q),c=b.getCenter(new THREE.Vector3());ctr=[c.x,c.y,c.z];dist=Math.max(b.max.x-b.min.x,b.max.y-b.min.y)*2.2}pos();draw()};
+const sl=()=>{const e=$('se').value/100;gg.position.z=($('sy').value/100-.5)*r.Y*.01;cg.position.x=($('sx').value/100-.5)*r.X*.01;sg.position.y=($('sz').value/100-1)*r.Z*.01;FR.position.y=-e*.5;gg.position.y=e*.3;cg.position.z=e*.9;sg.position.z=e*.9;draw()};
+['sx','sy','sz','se'].forEach(i=>$(i).oninput=sl);$('pv').onchange=view;$('png').onclick=()=>{draw();ren.domElement.toBlob(b=>dl('cnc-render.png',b,$('xm')))};
+dist=Math.max(ox,oy)*.01*2;ctr=[0,H*.005,0];ang={a:.8,b:.45};pos();sl();
+let dn=false,lx,ly,mv=0;cv.onpointerdown=e=>{dn=true;mv=0;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(e.pointerId)};
+cv.onpointerup=e=>{dn=false;if(mv<4){const b=cv.getBoundingClientRect(),rc=new THREE.Raycaster();rc.setFromCamera(new THREE.Vector2((e.clientX-b.left)/b.width*2-1,-((e.clientY-b.top)/b.height*2-1)),cam);const h=rc.intersectObjects(scn3.children,true).find(i=>i.object.userData.n);$('pn').textContent=h?h.object.userData.n:''}};
+cv.onpointermove=e=>{if(!dn)return;mv+=Math.abs(e.clientX-lx)+Math.abs(e.clientY-ly);ang.a-=(e.clientX-lx)*.01;ang.b=Math.max(.05,Math.min(1.5,ang.b+(e.clientY-ly)*.01));lx=e.clientX;ly=e.clientY;pos();draw()};
+cv.onwheel=e=>{e.preventDefault();dist=Math.max(1,dist*(1+Math.sign(e.deltaY)*.08));pos();draw()}}
+function pos(){cam.position.set(ctr[0]+dist*Math.cos(ang.b)*Math.sin(ang.a),ctr[1]+dist*Math.sin(ang.b),ctr[2]+dist*Math.cos(ang.b)*Math.cos(ang.a));cam.lookAt(...ctr)}
+function draw(){const cv=ren.domElement,w=cv.clientWidth,h=cv.clientHeight;ren.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();ren.render(scn3,cam)}
+
+//ENG
+const NEMA={'NEMA 17':{sq:42.3,pt:31,pl:22,d:3.4},'NEMA 23':{sq:57.15,pt:47.14,pl:38.1,d:5.2},'NEMA 24':{sq:60,pt:49.5,pl:38.1,d:5.2},'NEMA 34':{sq:86.4,pt:69.6,pl:73.03,d:6.6}};
+const BLK={MGN9:{B:15,C:16,d:3},MGN12:{B:20,C:20,d:3},MGN15:{B:25,C:25,d:3},HGR15:{B:26,C:26,d:4},HGR20:{B:32,C:36,d:5},HGR25:{B:35,C:50,d:6},SBR16:{B:40,C:40,d:5}};
+const clr=d=>({3:3.4,4:4.5,5:5.5,6:6.6}[d]||d+.5);
+function parts2d(r){const nk=r.ax[0].mot.n.split(' (')[0],N=NEMA[nk],K=BLK[r.rail],bl=RAIL[r.rail].bl,out=[];
+const H=(a,x,y,d,t,n)=>a.push({x:rd(x,2),y:rd(y,2),d:rd(d,2),t:t||'Through',n:n||''});
+{const w=rd(N.sq+30,1),a=[],c=w/2;H(a,c,c,N.pl+.5,'Bore','motor pilot');[[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([i,j])=>H(a,c+i*N.pt/2,c+j*N.pt/2,N.d,'Through',nk+' bolt'));[[10,10],[w-10,10],[w-10,w-10],[10,w-10]].forEach(([x,y])=>H(a,x,y,5.5,'Through','M5 fixing'));out.push({no:'P-01',name:'Motor mounting plate ('+nk+')',mat:'Aluminum 6061-T6',t:8,qty:r.motors,w,h:w,rr:5,holes:a})}
+{const w=r.gd,h=r.gH,a=[],by=25+K.B/2;[w/2-(bl/2+10),w/2+(bl/2+10)].forEach(c=>[-1,1].forEach(i=>[-1,1].forEach(j=>H(a,c+i*K.C/2,by+j*K.B/2,clr(K.d),'Through',r.rail+' block M'+K.d))));[15,w-15].forEach(x=>[h-15,h-35].forEach(y=>H(a,x,y,5.5,'Through','beam M5')));out.push({no:'P-02',name:'Gantry side plate',mat:'Aluminum 6061-T6',t:12,qty:2,w,h,rr:5,holes:a})}
+{const w=r.zw,h=r.zr,a=[],sp=w-RAIL[r.rail].w-20;[-1,1].forEach(s=>[h/2-(bl/2+10),h/2+(bl/2+10)].forEach(cy=>[-1,1].forEach(i=>[-1,1].forEach(j=>H(a,w/2+s*sp/2+i*K.B/2,cy+j*K.C/2,clr(K.d),'Through',r.rail+' Z block M'+K.d)))));[-12,12].forEach(i=>[-15,15].forEach(j=>H(a,w/2+i,h/2+j,5.5,'Through','spindle clamp M5')));out.push({no:'P-03',name:'Z-axis carriage plate',mat:'Aluminum 6061-T6',t:10,qty:1,w,h,rr:5,holes:a})}
+out.forEach(q=>q.holes.forEach((o,i)=>o.id='H'+String(i+1).padStart(2,'0')));return out}
+function verify(ps){const e=[];ps.forEach(q=>{q.holes.forEach(o=>{const m=Math.min(o.x,o.y,q.w-o.x,q.h-o.y);if(o.t!='Bore'&&m<1.5*o.d)e.push(`${q.no} ${o.id}: edge distance ${rd(m,1)} < 1.5xD`);if(o.x-o.d/2<0||o.y-o.d/2<0||o.x+o.d/2>q.w||o.y+o.d/2>q.h)e.push(`${q.no} ${o.id}: outside plate`)});
+for(let i=0;i<q.holes.length;i++)for(let j=i+1;j<q.holes.length;j++){const a=q.holes[i],b=q.holes[j],dd=Math.hypot(a.x-b.x,a.y-b.y);if(dd<(a.d+b.d)/2+2)e.push(`${q.no} ${a.id}/${b.id}: spacing ${rd(dd,1)} too small`)}});return e}
+function dxf(q){let s='0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';const L=(a,b,c,d)=>s+=`0\nLINE\n8\nOUTLINE\n10\n${a}\n20\n${b}\n30\n0\n11\n${c}\n21\n${d}\n31\n0\n`,A=(x,y,t,u)=>s+=`0\nARC\n8\nOUTLINE\n10\n${x}\n20\n${y}\n30\n0\n40\n${q.rr}\n50\n${t}\n51\n${u}\n`,w=q.w,h=q.h,k=q.rr;
+L(k,0,w-k,0);L(w,k,w,h-k);L(w-k,h,k,h);L(0,h-k,0,k);A(w-k,k,270,360);A(w-k,h-k,0,90);A(k,h-k,90,180);A(k,k,180,270);
+q.holes.forEach(o=>s+=`0\nCIRCLE\n8\nHOLES\n10\n${o.x}\n20\n${o.y}\n30\n0\n40\n${o.d/2}\n`);return s+'0\nENDSEC\n0\nEOF\n'}
+function dxfOK(s,q){const c=[...s.matchAll(/CIRCLE\n8\nHOLES\n10\n(.*)\n20\n(.*)\n30\n0\n40\n(.*)\n/g)];return c.length==q.holes.length&&c.every((m,i)=>+m[1]==q.holes[i].x&&+m[2]==q.holes[i].y&&Math.abs(2*m[3]-q.holes[i].d)<1e-9)}
+const hcsv=ps=>'Part,Datum,Hole ID,X mm,Y mm,Diameter mm,Type,Note,Plate qty\n'+ps.flatMap(q=>q.holes.map(o=>[q.no,'bottom-left',o.id,o.x,o.y,o.d,o.t,o.n,q.qty].join(','))).join('\n');
+const fitS=(w,h,bw,bh)=>{const s=Math.min(bw/w,bh/h);return [1,.5,.25,.2,.1,.05,.025,.02,.01].find(v=>v<=s)||.01};
+const mk=(ox,oy,s,Hh)=>({s,X:x=>ox+x*s,Y:y=>oy+(Hh-y)*s});
+const arH=(d,x,y,k)=>d.triangle(x,y,x+3*k,y-.8,x+3*k,y+.8,'F'),arV=(d,x,y,k)=>d.triangle(x,y,x-.8,y+3*k,x+.8,y+3*k,'F');
+function dmH(d,x1,x2,y,off,t){const yl=y+off,e=off>0?2:-2;d.setLineWidth(.15);d.line(x1,y,x1,yl+e);d.line(x2,y,x2,yl+e);d.line(x1,yl,x2,yl);arH(d,x1,yl,1);arH(d,x2,yl,-1);d.text(String(t),(x1+x2)/2,yl-1,{align:'center'})}
+function dmV(d,x,y1,y2,off,t){const xl=x+off,e=off>0?2:-2;d.setLineWidth(.15);d.line(x,y1,xl+e,y1);d.line(x,y2,xl+e,y2);d.line(xl,y1,xl,y2);arV(d,xl,y1,1);arV(d,xl,y2,-1);d.text(String(t),off>0?xl+3:xl-1,(y1+y2)/2,{angle:90,align:'center'})}
+const GROUPS=[['frame',['جسم الماكينة (الهيكل)','Frame / body']],['motion',['الحركة الخطية ونقل الحركة','Linear motion & drive']],['spindle',['المغزل والتبريد','Spindle & cooling']],['elec',['القطع الإلكترونية','Electronics']],['soft',['البرمجيات','Software']]];
+function gk(q){return q.g=='E'?'elec':q.g=='S'?'soft':/spindle|cooling|laser|pen lifter/i.test(q.n)?'spindle':/rail|screw|support|coupling|GT2|chain/i.test(q.n)?'motion':'frame'}
+function buildPDF(J,r,p,paper,vr,ps){const d=new J({orientation:'landscape',unit:'mm',format:paper.toLowerCase()}),W=d.internal.pageSize.getWidth(),H=d.internal.pageSize.getHeight(),date=new Date().toISOString().slice(0,10),proj=`CNC ${p.type} ${r.X}x${r.Y}x${r.Z} (${r.tier})`;let sh=0;
+const box={x:16,y:28,w:W-32,h:H-28-26-14},WARN='PRELIMINARY DRAWINGS - NOT APPROVED FOR MANUFACTURING';
+const np=(title,sc)=>{if(sh)d.addPage();sh++;d.setDrawColor(0);d.setTextColor(0);d.setLineWidth(.5);d.rect(8,8,W-16,H-16);d.setFontSize(13);d.text(title,16,19);d.setFontSize(8);d.setTextColor(180,30,30);d.text(WARN,W-16,19,{align:'right'});d.setTextColor(0);
+const x=W-8-130,y=H-8-26;d.setLineWidth(.3);d.rect(x,y,130,26);d.line(x,y+13,x+130,y+13);d.line(x+80,y,x+80,y+26);d.line(x+105,y+13,x+105,y+26);d.setFontSize(7);d.text('PROJECT: '+proj,x+2,y+5);d.text('TITLE: '+title,x+2,y+10);d.text('Units: mm | ISO first-angle',x+2,y+18);d.text('Gen: '+date+' | Rev A',x+2,y+23);d.text('SHEET '+sh,x+82,y+8);d.text('SCALE '+(sc||'n/a'),x+82,y+19);d.text('Status: PRELIM',x+107,y+24);d.setFontSize(8)};
+const rc=(m,x,y,w,h)=>d.rect(m.X(x),m.Y(y+h),w*m.s,h*m.s);
+const view=(title,w,h,draw)=>{const s=fitS(w,h,box.w-70,box.h-60),m=mk(box.x+(box.w-w*s)/2,box.y+(box.h-h*s)/2,s,h);np(title,'1:'+Math.round(1/s));d.setLineWidth(.5);draw(m);d.setLineWidth(.18)};
+const gx=(r.xr/2+6+r.rw/2),zc=r.PF.w*0+r.pw+r.gH-r.PF.w-r.zr/2+30,hs=r.sp.kg*50+40;
+// 1 cover
+np('Cover and design specification');d.setFontSize(20);d.text('CNC MANUFACTURING DRAWINGS',16,40);d.setFontSize(11);
+[`Machine: ${p.type}  |  Tier: ${r.tier}  |  Material: ${p.mat}`,`Work area: ${r.X} x ${r.Y} mm   Z travel: ${r.Z} mm`,`Outer envelope (X x Y x H): ${r.outX} x ${r.outY} x ${r.H} mm`,`Frame: ${r.PF.n} extrusion | Rails: ${r.rail} | Screws: ${r.scn} | Spindle: ${r.sp.n}`,`Motors: ${r.ax.map(a=>a.k+' '+a.mot.n.split(' (')[0]+(a.n>1?' x'+a.n:'')).join(', ')} | Est. cost: ${Math.round(r.total)} SAR (unverified)`,`Engine status: ${r.status}`,'',`Hole geometry checks: ${vr.errs.length?vr.errs.length+' issue(s) - see validation sheet':'PASS'} | DXF vs hole table coordinates: ${vr.dxf?'MATCH':'MISMATCH'}`,'','Sheets: views (top, front, side), plate drawings with hole tables, frame cut list, rail/screw schedule, BOM, validation.','NOT included in this version: bottom, left/right, isometric, exploded and section views; wiring diagram; screw/rail installation drawings; STEP.','Rail block hole patterns and NEMA flange data are typical catalog values - verify against supplier datasheets before cutting.','Text is English only (PDF base fonts have no Arabic glyphs).'].forEach((t,i)=>d.text(t,16,56+i*8));
+d.setTextColor(180,30,30);d.setFontSize(14);d.text(WARN,16,H-50);d.setTextColor(0);d.setFontSize(8);
+// views
+view('Top view',r.outX,r.outY,m=>{rc(m,0,0,r.outX,r.outY);rc(m,r.pw,r.pw,r.outX-2*r.pw,r.outY-2*r.pw);d.setLineDashPattern([3,1.5],0);rc(m,(r.outX-r.X)/2,(r.outY-r.Y)/2,r.X,r.Y);d.setLineDashPattern([],0);[-1,1].forEach(i=>{rc(m,r.outX/2+i*gx-r.rw/2,(r.outY-r.yr)/2,r.rw,r.yr);rc(m,r.outX/2+i*gx-6,(r.outY-r.gd)/2,12,r.gd)});rc(m,r.outX/2-r.beamL/2,r.outY/2-r.PF.w/2,r.beamL,r.PF.w);
+dmH(d,m.X(0),m.X(r.outX),m.Y(0),12,'OVERALL X '+r.outX);dmV(d,m.X(r.outX),m.Y(r.outY),m.Y(0),12,'OVERALL Y '+r.outY);dmH(d,m.X((r.outX-r.X)/2),m.X((r.outX+r.X)/2),m.Y(r.outY),-10,'WORK X '+r.X);dmH(d,m.X(r.outX/2-gx),m.X(r.outX/2+gx),m.Y(r.outY),-20,'RAIL SPACING '+rd(2*gx,1));dmV(d,m.X(0),m.Y(r.outY/2+r.Y/2),m.Y(r.outY/2-r.Y/2),-10,'WORK Y '+r.Y);dmV(d,m.X(0),m.Y((r.outY+r.yr)/2),m.Y((r.outY-r.yr)/2),-24,'Y RAIL L '+r.yr)});
+view('Front view',r.outX,r.H,m=>{rc(m,0,0,r.outX,r.pw);[-1,1].forEach(i=>rc(m,r.outX/2+i*gx-6,r.pw,12,r.gH));rc(m,r.outX/2-r.beamL/2,r.pw+r.gH-r.PF.w,r.beamL,r.PF.w);rc(m,r.outX/2-r.zw/2,zc-r.zr/2,r.zw,r.zr);rc(m,r.outX/2-30,zc-hs/2,60,hs);d.setLineDashPattern([3,1.5],0);rc(m,r.outX/2-r.X/2,r.pw,r.X,18);d.setLineDashPattern([],0);
+dmH(d,m.X(0),m.X(r.outX),m.Y(0),12,'OVERALL X '+r.outX);dmV(d,m.X(r.outX),m.Y(r.H),m.Y(0),12,'OVERALL H '+r.H);dmV(d,m.X(0),m.Y(r.pw+r.gH),m.Y(r.pw),-12,'GANTRY H '+r.gH);dmV(d,m.X(r.outX/2+r.zw/2),m.Y(zc+r.zr/2),m.Y(zc-r.zr/2),14,'Z PLATE '+r.zr)});
+view('Side view',r.outY,r.H,m=>{rc(m,0,0,r.outY,r.pw);rc(m,r.outY/2-r.gd/2,r.pw,r.gd,r.gH);rc(m,r.outY/2-r.PF.w/2,r.pw+r.gH-r.PF.w,r.PF.w,r.PF.w);rc(m,r.outY/2+r.PF.w/2+3,zc-r.zr/2,10,r.zr);rc(m,r.outY/2+r.PF.w/2+20,zc-hs/2,60,hs);
+dmH(d,m.X(0),m.X(r.outY),m.Y(0),12,'OVERALL Y '+r.outY);dmV(d,m.X(r.outY),m.Y(r.H),m.Y(0),12,'OVERALL H '+r.H);dmH(d,m.X(r.outY/2-r.gd/2),m.X(r.outY/2+r.gd/2),m.Y(r.H),-8,'GANTRY PLATE '+r.gd);dmV(d,m.X(0),m.Y(r.pw+r.gH),m.Y(r.pw),-12,'PLATE H '+r.gH)});
+// plates
+ps.forEach(q=>{const bw=box.w*.58,s=fitS(q.w,q.h,bw-30,box.h-70),m=mk(box.x+30,box.y+10+(box.h-70-q.h*s)/2,s,q.h);np(`${q.no} ${q.name}`,'1:'+Math.round(1/s));d.setLineWidth(.5);d.roundedRect(m.X(0),m.Y(q.h),q.w*s,q.h*s,q.rr*s,q.rr*s);d.setLineWidth(.18);
+q.holes.forEach(o=>{d.setLineDashPattern([],0);d.circle(m.X(o.x),m.Y(o.y),o.d/2*s);d.setLineDashPattern([2,.6,.4,.6],0);const k=o.d*s*.8;d.line(m.X(o.x)-k,m.Y(o.y),m.X(o.x)+k,m.Y(o.y));d.line(m.X(o.x),m.Y(o.y)-k,m.X(o.x),m.Y(o.y)+k);d.setLineDashPattern([],0);d.setFontSize(5);d.text(o.id,m.X(o.x)+o.d/2*s+.5,m.Y(o.y)-o.d/2*s,{});d.setFontSize(8)});
+d.setFontSize(6);[...new Set(q.holes.map(o=>o.x))].forEach(x=>{d.setLineWidth(.1);d.line(m.X(x),m.Y(0),m.X(x),m.Y(0)+6);d.text(String(x),m.X(x)+1,m.Y(0)+7,{angle:90})});[...new Set(q.holes.map(o=>o.y))].forEach(y=>{d.line(m.X(0),m.Y(y),m.X(0)-6,m.Y(y));d.text(String(y),m.X(0)-7,m.Y(y)+.8,{align:'right'})});d.setFontSize(8);
+dmH(d,m.X(0),m.X(q.w),m.Y(0),22,q.w+' mm');dmV(d,m.X(q.w),m.Y(q.h),m.Y(0),10,q.h+' mm');arH(d,m.X(0),m.Y(0),1);d.text('DATUM (0,0)',m.X(0)+4,m.Y(0)-2);
+const tx=box.x+bw+10;d.setFontSize(9);d.text(`${q.no}  ${q.name}`,tx,box.y+4);d.setFontSize(8);[`Material: ${q.mat}`,`Thickness: ${q.t} mm   Qty: ${q.qty}`,`Size: ${q.w} x ${q.h} mm   Corner R${q.rr}`,'Tol: ISO 2768-m; hole position +/-0.1 (default, not engineered)'].forEach((t,i)=>d.text(t,tx,box.y+10+i*4.5));
+d.text('ID',tx,box.y+32);d.text('X',tx+14,box.y+32);d.text('Y',tx+30,box.y+32);d.text('Dia',tx+46,box.y+32);d.text('Type / note',tx+60,box.y+32);const rh=Math.min(4.2,(box.h-45)/q.holes.length);d.setFontSize(7);q.holes.forEach((o,i)=>{const y=box.y+37+i*rh;d.text(o.id,tx,y);d.text(String(o.x),tx+14,y);d.text(String(o.y),tx+30,y);d.text(String(o.d),tx+46,y);d.text(o.t+' '+o.n,tx+60,y)});d.setFontSize(8)});
+// cut list + schedule
+np('Frame cut list and axis schedule');let y=box.y+4;d.text(`Extrusion ${r.PF.n} - total ${rd(r.profLen/1000,2)} m (add saw kerf and stock length)`,16,y);r.cuts.forEach((c,i)=>d.text(`${c[0]}  x${c[1]}  L = ${rd(c[2],1)} mm`,16,y+8+i*6));y+=44;d.text('Axis schedule',16,y);
+r.ax.forEach((a,i)=>d.text(`${a.k}: rail ${r.rail} L=${[r.xr,r.yr,r.zr][i]} mm x2 | ${a.sc=='GT2'?'GT2 belt':a.sc+' screw L='+a.L+' mm x'+a.n} | motor ${a.mot.n} x${a.n} | req. torque ${rd(a.need,2)} N.m`,16,y+8+i*6));
+// BOM
+const rows=[];GROUPS.forEach(([k,nm])=>{const L=r.parts.filter(q=>gk(q)==k);if(L.length){rows.push({h:nm[1]+' - subtotal '+Math.round(L.reduce((t,q)=>t+q.q*q.u,0))+' SAR'});L.forEach(q=>rows.push(q))}});
+let nn=0;const per=Math.floor((box.h-12)/5.2);for(let i=0;i<rows.length;i+=per){np('Bill of materials by group (prices are estimates)');d.setFontSize(7);d.text('#',16,box.y+2);d.text('Part',24,box.y+2);d.text('Spec',150,box.y+2);d.text('Qty',W-70,box.y+2);d.text('SAR est',W-50,box.y+2);rows.slice(i,i+per).forEach((q,j)=>{const yy=box.y+8+j*5.2;if(q.h){d.setFont('helvetica','bold');d.text(q.h,16,yy);d.setFont('helvetica','normal');return}nn++;d.text(String(nn),16,yy);d.text(q.n.slice(0,70),24,yy);d.text(String(q.spec).slice(0,55),150,yy);d.text(String(q.q),W-70,yy);d.text(String(Math.round(q.q*q.u)),W-50,yy)});d.setFontSize(8)}
+// validation
+np('Engineering validation report');y=box.y+4;const L=[...r.checks.map(c=>(c.s=='ok'?'PASS  ':c.s=='warn'?'WARN  ':'FAIL  ')+c.t[1]),...(vr.errs.length?vr.errs.map(e=>'FAIL  '+e):['PASS  Plate hole edge distance and hole spacing checks']),(vr.dxf?'PASS  ':'FAIL  ')+'DXF circle centres equal hole-table coordinates (same model source)','NOT RUN  Collision detection during motion, structural FEA, 3D-model hole mating check between parts','NOT RUN  Engineer review and approval - drawings stay PRELIMINARY'];L.slice(0,40).forEach((t,i)=>d.text(t.slice(0,170),16,y+i*5.5));
+return d}
+function buildAll(J,r,p,paper){const ps=parts2d(r),errs=verify(ps),dx={};ps.forEach(q=>dx[q.no+'.dxf']=dxf(q));const vr={errs,dxf:ps.every(q=>dxfOK(dx[q.no+'.dxf'],q))};const pdf=buildPDF(J,r,p,paper,vr,ps).output('arraybuffer');return{ps,vr,dx,csv:hcsv(ps),pdf}}
+//ENG-END
+
+// UI
+function setLang(){document.documentElement.lang=lang;document.documentElement.dir=lang=='ar'?'rtl':'ltr';['ttl','h_in','l_ty','l_x','l_y','l_z','l_mt','l_bd','l_ti','sv','l_ld','lo','nt'].forEach(k=>$(k).textContent=T(k));$('lb').textContent=lang=='ar'?'English':'العربية';
+const fill=(id,o)=>{const v=$(id).value;$(id).innerHTML=Object.entries(o).map(([k,t])=>`<option value="${k}">${t}</option>`).join('');if(v)$(id).value=v};fill('ty',D[lang].types);fill('mt',D[lang].mats);fill('ti',D[lang].tiers);if(!$('ti').value)$('ti').value='bal';
+$('tabs').innerHTML=[['sum','sum'],['v3','v3'],['bom','bom'],['cmp','cmp'],['chk','chk'],['exp','exp'],['lib','lib']].map(([k,l])=>`<button data-t="${k}">${T(l)}</button>`).join('');[...$('tabs').children].forEach(b=>b.onclick=()=>{tab=b.dataset.t;show()});listP()}
+function store(){try{return JSON.parse(localStorage.getItem('cncb')||'{}')}catch(e){return{}}}
+function listP(){const s=store();$('ld').innerHTML=Object.keys(s).map(k=>`<option>${k}</option>`).join('')}
+$('lb').onclick=()=>{lang=lang=='ar'?'en':'ar';setLang();show()};
+$('sv').onclick=()=>{const n=prompt('Name')||('CNC '+new Date().toISOString().slice(0,16));try{const s=store();s[n]=inp();localStorage.setItem('cncb',JSON.stringify(s))}catch(e){}listP()};
+$('lo').onclick=()=>{const p=store()[$('ld').value];if(!p)return;$('ty').value=p.type;$('x').value=p.x;$('y').value=p.y;$('z').value=p.z;$('mt').value=p.mat;$('bd').value=p.bd;$('ti').value=p.tier;run()};
+['ty','x','y','z','mt','bd','ti'].forEach(i=>$(i).oninput=run);
+setLang();$('ti').value='bal';$('bd').value=2500;run();
+</script></body></html>
